@@ -9,12 +9,17 @@ def main():
     hkmarket = HKMarket()
 
     # 初始化服务
-    quote_service = QuoteService(broker, hkmarket)
+    qs = QuoteService(broker, hkmarket)
 
-    print(quote_service.get_watchlist().__len__())
+    # print(qs.watchlistGroups)
+    print(qs.holdings)
+    # print(qs.get_watchlist_by_group("options"))
     # 查询股票信息
-    # stock_info = quote_service.get_stock_info("600519")
+    # stock_info = qs.get_stock_info("600519")
     # print(stock_info)
+    # print(qs.pull_quote(["02438.HK"]))
+    # print(qs.pull_depth("700.HK"))
+    print(qs.pull_intraday("TSLA.US")[0])
 
 
 if __name__ == "__main__":

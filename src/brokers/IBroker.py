@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Literal, Union
-from utils.typevar import TWatchlistSecurity
+from utils.typevar import *
 
 
 class IBroker(ABC):
@@ -26,19 +26,42 @@ class IBroker(ABC):
         """获取指定组名下的所有股票"""
         pass
 
+    @property
     @abstractmethod
-    def get_watchlist(self) -> List[TWatchlistSecurity]:
+    def allWatchlist(self) -> List[TWatchlistSecurity]:
         """获取所有自选股"""
         pass
 
+    @property
     @abstractmethod
-    def get_holdings(self):
+    def holdings(self) -> List[TWatchlistSecurity]:
         """获取当前持仓"""
         pass
 
+    @property
     @abstractmethod
-    def get_watchlistGroups(self) -> List[Dict[Literal["id", "name"], Union[int, str]]]:
+    def watchlistGroups(self) -> List[Dict[Literal["id", "name"], Union[int, str]]]:
         """获取所有分组"""
+        pass
+
+    @abstractmethod
+    def pull_static_info(self, symbols: List[str]) -> List[TSecurityStaticInfo]:
+        """获取标的基础信息"""
+        pass
+
+    @abstractmethod
+    def pull_quote(self, symbols: List[str]) -> List[TSecurityQuote]:
+        """获取标的实时行情"""
+        pass
+
+    @abstractmethod
+    def pull_depth(self, symbol: str) -> Dict[Literal["bids", "asks"], List[TDepth]]:
+        """获取标的盘口"""
+        pass
+
+    @abstractmethod
+    def pull_intraday(self, symbol: str) -> List[TIntradayLine]:
+        """获取标的分时"""
         pass
 
 
