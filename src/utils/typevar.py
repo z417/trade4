@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Optional, Type, Any
 from datetime import datetime
 from decimal import Decimal
+from enum import Enum
 
 
 @dataclass(kw_only=True)
@@ -79,3 +80,39 @@ class TIntradayLine:
     volume: int  # 成交量
     turnover: Decimal  # 成交额
     avg_price: Decimal  # 均价
+
+
+class EPeriod(Enum):
+    """k线周期"""
+
+    Min_1 = 1
+    Min_2 = 2
+    Min_3 = 3
+    Min_5 = 5
+    Min_10 = 10
+    Min_15 = 15
+    Min_20 = 20
+    Min_30 = 30
+    Min_45 = 45
+    Min_60 = 60
+    Min_120 = 120
+    Min_180 = 180
+    Min_240 = 240
+    Day = 1000
+    Week = 2000
+    Month = 3000
+    Quarter = 3500
+    Year = 4000
+
+
+@dataclass(kw_only=True)
+class TCandlesticks:
+    """k线"""
+
+    close: Decimal  # 当前周期收盘价
+    open: Decimal  # 当前周期开盘价
+    low: Decimal  # 当前周期最低价
+    high: Decimal  # 当前周期最高价
+    volume: int  # 当前周期成交量
+    turnover: Decimal  # 当前周期成交额
+    timestamp: datetime  # 当前周期的时间戳
