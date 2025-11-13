@@ -1,4 +1,5 @@
-from typing import Dict, List
+from typing import Any, Dict, List, Literal
+from datetime import datetime, date
 from dotenv import dotenv_values
 from longport.openapi import (
     Config,
@@ -20,18 +21,20 @@ class BrokerLongport(Broker):
 
     def connect(
         self,
+        language=Language.ZH_CN,
         enable_overnight=True,
+        push_candlestick_mode=PushCandlestickMode.Realtime,
         enable_print_quote_packages=False,
     ):
         self.config: Config = Config(
             app_key=self.env["LONGPORT_APP_KEY"],
             app_secret=self.env["LONGPORT_APP_SECRET"],
             access_token=self.env["LONGPORT_ACCESS_TOKEN"],
-            language=Language.ZH_CN,
+            language=language,
             enable_overnight=enable_overnight,
-            push_candlestick_mode=PushCandlestickMode.Realtime,
+            push_candlestick_mode=push_candlestick_mode,
             enable_print_quote_packages=enable_print_quote_packages,
-            log_path=self.env["LONGPORT_LOG_PATH"],
+            log_path=self.env["LONGPORT_LOG_PATH"] or None,
         )
         self.quote_ctx: QuoteContext = QuoteContext(self.config)
         self.trade_ctx: TradeContext = TradeContext(self.config)

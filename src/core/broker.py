@@ -29,18 +29,21 @@ class Broker(ABC, Generic[T, R]):
         """获取指定组名下的所有股票"""
         pass
 
+    @property
     @abstractmethod
     def get_watchlist(self) -> List[WatchlistSecurityModel]:
         """获取所有自选股"""
         pass
 
+    @property
     @abstractmethod
     def get_holdings(self) -> List[WatchlistSecurityModel]:
         """获取当前持仓"""
         pass
 
+    @property
     @abstractmethod
-    def get_watchlistGroups(self) -> List[Dict[Literal["id", "name"], Union[int, str]]]:
+    def watchlistGroups(self) -> List[Dict[Literal["id", "name"], int | str]]:
         """获取所有分组"""
         pass
 
