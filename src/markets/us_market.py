@@ -1,7 +1,7 @@
-from IMarket import IMarket
+from core.market import Market
 
 
-class USMarket(IMarket):
+class USMarket(Market):
     """美股市场"""
 
     def get_trading_hours(self):

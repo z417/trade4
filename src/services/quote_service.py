@@ -1,14 +1,17 @@
 from typing import List
-from utils.typevar import TWatchlistSecurity
-from brokers.IBroker import IBroker
+from core.broker import Broker
+from core.market import Market
 
 
 class QuoteService:
     def __init__(self, broker, market):
-        self.broker: IBroker = broker
-        self.market = market
-        self.broker.connect()
+        self.broker: Broker = broker
+        self.market: Market = market
 
-    def get_watchlist(self) -> List[TWatchlistSecurity]:
-        """获取所有自选股"""
-        return self.broker.get_watchlist()
+    def test(self):
+        # print(self.broker.get_watchlist())
+        # print(self.broker.get_watchlist_by_group("观察"))
+        # print(self.broker.get_watchlistGroups())
+        # print(self.broker.get_holdings())
+        print(self.broker.get_stock_static_info(["700.HK"]))
+        pass

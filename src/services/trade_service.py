@@ -1,6 +1,11 @@
-class TradeService:
-    def __init__(self, trade_provider):
-        self.trade_provider = trade_provider
+from core.broker import Broker
+from core.market import Market
 
-    def place_order(self, stock_code: str, amount: int, price: float) -> bool:
-        return self.trade_provider.place_order(stock_code, amount, price)
+
+class TradeService:
+    def __init__(self, broker, market):
+        self.broker: Broker = broker
+        self.market: Market = market
+
+    def test(self):
+        print(self.broker.get_account_balance())

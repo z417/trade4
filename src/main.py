@@ -1,20 +1,18 @@
-from brokers.longport import LongportBroker
-from services.quote_service import QuoteService
+from brokers.broker_longport import BrokerLongport
+from services import QuoteService, TradeService
 from markets.hk_market import HKMarket
 
 
 def main():
     # 初始化券商
-    broker = LongportBroker(".env")
+    broker = BrokerLongport(".env").connect()
     hkmarket = HKMarket()
 
     # 初始化服务
     quote_service = QuoteService(broker, hkmarket)
+    trade_service = TradeService(broker, hkmarket)
 
-    print(quote_service.get_watchlist().__len__())
-    # 查询股票信息
-    # stock_info = quote_service.get_stock_info("600519")
-    # print(stock_info)
+    quote_service.test()
 
 
 if __name__ == "__main__":

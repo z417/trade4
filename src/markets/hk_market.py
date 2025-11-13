@@ -1,7 +1,7 @@
-from markets.IMarket import IMarket
+from core.market import Market
 
 
-class HKMarket(IMarket):
+class HKMarket(Market):
     """港股市场"""
 
     def get_trading_hours(self):

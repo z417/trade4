@@ -1,11 +1,17 @@
 from typing import Dict, List
 from dotenv import dotenv_values
-from longport.openapi import Config, Language, PushCandlestickMode, QuoteContext
-from brokers.IBroker import IBroker
-from utils.typevar import TWatchlistSecurity
+from longport.openapi import (
+    Config,
+    Language,
+    PushCandlestickMode,
+    QuoteContext,
+    TradeContext,
+)
+from core.broker import Broker
+from core.data_models import WatchlistSecurityModel
 
 
-class LongportBroker(IBroker):
+class BrokerLongport(Broker):
     """长桥"""
 
     def __init__(self, credentials: str):
@@ -16,7 +22,7 @@ class LongportBroker(IBroker):
         self,
         enable_overnight=True,
         enable_print_quote_packages=False,
-    ) -> None:
+    ):
         self.config: Config = Config(
             app_key=self.env["LONGPORT_APP_KEY"],
             app_secret=self.env["LONGPORT_APP_SECRET"],
@@ -28,12 +34,14 @@ class LongportBroker(IBroker):
             log_path=self.env["LONGPORT_LOG_PATH"],
         )
         self.quote_ctx: QuoteContext = QuoteContext(self.config)
+        self.trade_ctx: TradeContext = TradeContext(self.config)
         self.refresh_watchlist()
+        return self
 
-    def refresh_watchlist(self) -> None:
+    def refresh_watchlist(self):
         self.watchlist = self.quote_ctx.watchlist()
 
-    def get_watchlist_by_group(self, group_name: str) -> List[TWatchlistSecurity]:
+    def get_watchlist_by_group(self, group_name: str):
         tmp = next(
             filter(
                 lambda x: x.name == group_name,
@@ -41,7 +49,7 @@ class LongportBroker(IBroker):
             ),
         )
         return [
-            TWatchlistSecurity(
+            WatchlistSecurityModel(
                 watchlistSecurity.symbol,
                 watchlistSecurity.market,
                 watchlistSecurity.name,
@@ -53,5 +61,17 @@ class LongportBroker(IBroker):
             for watchlistSecurity in tmp.securities
         ]
 
-    def get_watchlist(self) -> List[TWatchlistSecurity]:
+    def get_watchlist(self):
         return self.get_watchlist_by_group("all")
+
+    def get_holdings(self):
+        return self.get_watchlist_by_group("holdings")
+
+    def get_watchlistGroups(self):
+        return [{"id": x.id, "name": x.name} for x in self.watchlist]
+
+    def get_account_balance(self):
+        return self.trade_ctx.account_balance()
+
+    def get_stock_static_info(self, symbols: List[str]):
+        return self.quote_ctx.static_info(symbols)
