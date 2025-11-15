@@ -9,7 +9,7 @@ from longport.openapi import (
     TradeContext,
 )
 from core.broker import Broker
-from core.data_models import WatchlistSecurityModel
+from core.data_models import WatchlistSecurityModel, SecurityStaticInfoModel
 
 
 class BrokerLongport(Broker):
@@ -38,43 +38,64 @@ class BrokerLongport(Broker):
         )
         self.quote_ctx: QuoteContext = QuoteContext(self.config)
         self.trade_ctx: TradeContext = TradeContext(self.config)
-        self.refresh_watchlist()
         return self
-
-    def refresh_watchlist(self):
-        self.watchlist = self.quote_ctx.watchlist()
 
     def get_watchlist_by_group(self, group_name: str):
         tmp = next(
             filter(
                 lambda x: x.name == group_name,
-                self.watchlist,
+                self.quote_ctx.watchlist(),
             ),
         )
         return [
             WatchlistSecurityModel(
-                watchlistSecurity.symbol,
-                watchlistSecurity.market,
-                watchlistSecurity.name,
-                watchlistSecurity.watched_price,
-                watchlistSecurity.watched_at,
-                tmp.id,
-                tmp.name,
+                symbol=watchlistSecurity.symbol,
+                market=watchlistSecurity.market,
+                name=watchlistSecurity.name,
+                watched_price=watchlistSecurity.watched_price,
+                watched_at=watchlistSecurity.watched_at,
+                group_id=tmp.id,
+                group_name=tmp.name,
             )
             for watchlistSecurity in tmp.securities
         ]
 
-    def get_watchlist(self):
+    @property
+    def watchlist(self):
         return self.get_watchlist_by_group("all")
 
-    def get_holdings(self):
+    @property
+    def holdings(self):
         return self.get_watchlist_by_group("holdings")
 
-    def get_watchlistGroups(self):
-        return [{"id": x.id, "name": x.name} for x in self.watchlist]
+    @property
+    def watchlistGroups(self):
+        return [{"id": x.id, "name": x.name} for x in self.quote_ctx.watchlist()]
 
-    def get_account_balance(self):
+    @property
+    def account_balance(self):
         return self.trade_ctx.account_balance()
 
     def get_stock_static_info(self, symbols: List[str]):
-        return self.quote_ctx.static_info(symbols)
+        batches = [
+            symbols[i : i + 500] for i in range(0, len(symbols), 500)
+        ]  # 每次限流500个
+        return [
+            SecurityStaticInfoModel(
+                symbol=x.symbol,
+                name=x.name_cn,
+                exchange=x.exchange,
+                currency=x.currency,
+                lot_size=x.lot_size,
+                total_shares=x.total_shares,
+                circulating_shares=x.circulating_shares,
+                eps=x.eps,
+                eps_ttm=x.eps_ttm,
+                bps=x.bps,
+                dividend_yield=x.dividend_yield,
+                stock_derivatives=x.stock_derivatives,
+                board=x.board,
+            )
+            for batch in batches
+            for x in self.quote_ctx.static_info(batch)
+        ]

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Literal, Union, TypeVar, Generic
-from core.data_models import WatchlistSecurityModel
+from core.data_models import WatchlistSecurityModel, SecurityStaticInfoModel
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -20,40 +20,41 @@ class Broker(ABC, Generic[T, R]):
         pass
 
     @abstractmethod
-    def refresh_watchlist(self) -> List[WatchlistSecurityModel]:
-        """刷新自选股"""
-        pass
-
-    @abstractmethod
     def get_watchlist_by_group(self, group_name: str) -> List[WatchlistSecurityModel]:
-        """获取指定组名下的所有股票"""
+        """获取指定组名下的所有标的"""
         pass
 
     @property
     @abstractmethod
-    def get_watchlist(self) -> List[WatchlistSecurityModel]:
-        """获取所有自选股"""
+    def watchlist(self) -> List[WatchlistSecurityModel]:
+        """所有自选"""
         pass
 
     @property
     @abstractmethod
-    def get_holdings(self) -> List[WatchlistSecurityModel]:
-        """获取当前持仓"""
+    def holdings(self) -> List[WatchlistSecurityModel]:
+        """当前持仓"""
         pass
 
     @property
     @abstractmethod
     def watchlistGroups(self) -> List[Dict[Literal["id", "name"], int | str]]:
-        """获取所有分组"""
+        """所有分组"""
+        pass
+
+    @property
+    @abstractmethod
+    def account_balance(self) -> R:
+        """资产总览
+        TODO: 放在这里是否合适？交易和数据获取可以分开
+        """
         pass
 
     @abstractmethod
-    def get_account_balance(self) -> R:
-        """获取资产总览"""
-        pass
-
-    @abstractmethod
-    def get_stock_static_info(self, symbols: List[str]) -> R:
+    def get_stock_static_info(
+        self, symbols: List[str]
+    ) -> List[SecurityStaticInfoModel]:
+        """获取标的基本信息"""
         pass
 
 
