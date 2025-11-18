@@ -1,5 +1,4 @@
-from core.broker import Broker
-from core.market import Market
+from core import Broker, Market
 
 
 class TradeService:
@@ -8,4 +7,4 @@ class TradeService:
         self.market: Market = market
 
     def test(self):
-        print(self.broker.get_account_balance())
+        print(self.broker.account_balance)

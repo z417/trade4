@@ -1,23 +1,21 @@
-from typing import Any, Dict, List, Literal
-from datetime import datetime, date
-from dotenv import dotenv_values
+from typing import Dict, List
 from longport.openapi import (
     Config,
     Language,
     PushCandlestickMode,
     QuoteContext,
     TradeContext,
+    HttpClient,
 )
-from core.broker import Broker
-from core.data_models import WatchlistSecurityModel, SecurityStaticInfoModel
+from core import Broker, WatchlistSecurityModel, SecurityStaticInfoModel
 
 
 class BrokerLongport(Broker):
     """长桥"""
 
-    def __init__(self, credentials: str):
+    def __init__(self, credentials: Dict):
         super().__init__()
-        self.env: Dict = dotenv_values(credentials)
+        self.env: Dict = credentials
 
     def connect(
         self,
@@ -38,6 +36,7 @@ class BrokerLongport(Broker):
         )
         self.quote_ctx: QuoteContext = QuoteContext(self.config)
         self.trade_ctx: TradeContext = TradeContext(self.config)
+        self.http_cli: HttpClient = HttpClient.from_env()
         return self
 
     def get_watchlist_by_group(self, group_name: str):

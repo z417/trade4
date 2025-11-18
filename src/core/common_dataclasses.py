@@ -2,7 +2,7 @@ from dataclasses import dataclass, field, fields
 from typing import Optional, Any
 from datetime import datetime
 from decimal import Decimal
-from core.common_fields import *
+from .common_fields import *
 
 
 @dataclass

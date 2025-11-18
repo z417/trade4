@@ -1,16 +1,23 @@
-from brokers.broker_longport import BrokerLongport
+from dotenv import dotenv_values
+
+from brokers import BrokerLongport
 from services import QuoteService, TradeService
-from markets.hk_market import HKMarket
+from markets import CNMarket, HKMarket, USMarket
 
 
 def main():
+    # get config from .env
+    conf = dotenv_values(".env")
+
     # 初始化券商
-    broker = BrokerLongport(".env").connect()
-    hkmarket = HKMarket()
+    broker = BrokerLongport(conf).connect()
+
+    cnmarket = CNMarket(conf)
+    hkmarket = HKMarket(conf)
 
     # 初始化服务
-    quote_service = QuoteService(broker, hkmarket)
-    trade_service = TradeService(broker, hkmarket)
+    quote_service = QuoteService(broker, cnmarket)
+    trade_service = TradeService(broker, cnmarket)
 
     quote_service.test()
 

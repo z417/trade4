@@ -1,6 +1,5 @@
 from typing import List
-from core.broker import Broker
-from core.market import Market
+from core import Broker, Market
 
 
 class QuoteService:
@@ -13,6 +12,8 @@ class QuoteService:
         # print(self.broker.get_watchlist_by_group("观察"))
         # print(self.broker.watchlistGroups)
         # print(self.broker.holdings)
-        # print(self.broker.get_stock_static_info(["700.HK", "TSLA.US", "002249.SZ"]))
+        # print(self.broker.get_stock_static_info(["06288.HK", "TSLA.US", "002091.SZ"]))
         #
+        self.market.spa_stock_info()
+        # print(self.market.security_list.query("code=='6288'"))
         pass
