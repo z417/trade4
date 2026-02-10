@@ -14,9 +14,10 @@ def main():
 
     cnmarket = CNMarket(conf)
     hkmarket = HKMarket(conf)
+    usmarket = USMarket(conf)
 
     # 初始化服务
-    quote_service = QuoteService(broker, cnmarket)
+    quote_service = QuoteService(broker, usmarket)
     trade_service = TradeService(broker, cnmarket)
 
     quote_service.test()

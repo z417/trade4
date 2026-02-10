@@ -15,5 +15,10 @@ class QuoteService:
         # print(self.broker.get_stock_static_info(["06288.HK", "TSLA.US", "002091.SZ"]))
         #
         self.market.spa_stock_info()
-        # print(self.market.security_list.query("code=='6288'"))
+        print(
+            # self.market.security_list.query(
+            #     "code in ['000001','300001','600004','688678']"
+            # )
+            self.market.security_list.shape[0]
+        )
         pass

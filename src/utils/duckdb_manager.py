@@ -70,7 +70,13 @@ class DuckDBManager:
             elif if_exists == "append":
                 # DuckDB 支持直接 INSERT FROM df
                 conn.register("__temp_df", df)
-                conn.execute(f"INSERT INTO {table_name} SELECT * FROM __temp_df")
+                try:
+                    conn.execute(f"INSERT INTO {table_name} SELECT * FROM __temp_df")
+                except duckdb.CatalogException:
+                    conn.execute(
+                        f"CREATE OR REPLACE TABLE {table_name} AS SELECT * FROM __temp_df"
+                    )
+                    conn.execute(f"INSERT INTO {table_name} SELECT * FROM __temp_df")
                 conn.unregister("__temp_df")
             else:
                 raise ValueError("if_exists must be 'replace', 'append', or 'fail'")

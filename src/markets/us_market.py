@@ -22,7 +22,7 @@ class USMarket(Market):
             )
         DuckDBManager.insert_df(
             table_name,
-            Market.fetch_stock_from_eastmoney("US").assign(exchange="US"),
+            Market.fetch_stock_from_sina("US").assign(exchange="US"),
             self.db_path,
         )
         return table_name
