@@ -1,0 +1,14 @@
+# 模块逻辑
+- brokers/broker_longport.py: 策略模式(longport券商sdk封装)
+- core/ai.py: 所有 AI 必须继承下的 ABC
+- core/broker.py: 所有 Broker 必须继承的ABC
+- core/common_dataclasses.py: 公共类型集合，统一不同数据源返回的结构
+- core/common_fields.py: 公共字段集合，为dataclass所用
+- core/market.py: 所有 Market 必须继承的 ABC
+- markets/cn_market.py: A股市场
+- markets/hk_market.py: 港股市场
+- markets/us_market.py: 美股市场
+- services/quote_service.py: 依赖注入不同的市场
+- services/trade_service.py: 依赖注入不同的市场
+- utils/duckdb_manager.py: 数据存储
+- utils/measures.py: 统计耗时等工具库

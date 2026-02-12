@@ -109,32 +109,12 @@ class Market(ABC, Generic[T, R]):
     def fetch_stock_from_sina(
         cls, ex: Literal["SSE", "SZSE", "HKEX", "US"]
     ) -> pd.DataFrame:
-        EX_CONFIG = {
-            # "SSE": {  # 上海
-            #     "A-shares": "",  # A股
-            #     "ChiNext": "",  # 科创板
-            # },
-            # "SZSE": {  # 深圳
-            #     "A-shares": "",
-            #     "STAR": "",  # 创业板
-            # },
-            # "HKEX": {  # 香港
-            #     "Main": "",  # 主板
-            #     "GEM": "",  # 创业板
-            # },
-            # "BSE": {"A-shares": ""},  # 北京
+        filter_str = {
             "US": {
-                "url": "https://stock.finance.sina.com.cn/usstock/api/jsonp.php/jQuery/US_CategoryService.getList",
-                "parse": lambda text: _parse_jsonp_us(text),
+                "url": "https://stock.finance.sina.com.cn/usstock/api/jsonp.php/jQuery/US_CategoryService.getList"
             },
         }
         stk_df = pd.DataFrame()
-
-        def _parse_jsonp_us(text):
-            pass
-
-        def _parse_market_center(text):
-            pass
 
         def in_call(fs, page_num=1, page_size=60):
             try:
@@ -158,18 +138,18 @@ class Market(ABC, Generic[T, R]):
                         "id": None,
                     },
                 ).text
-                match = re.search(r"jQuery", jsonp_str)
+                match = re.search(r"jQuery\((\{.*\})\)", jsonp_str, re.DOTALL)
             except requests.RequestException as e:
                 import sys
 
                 print(e)
                 sys.exit(1)
 
-            return json.loads(match.group(1)).get("data") if match else {}
+            return json.loads(match.group(1)) if match else {}
 
         for board, fs in filter_str.get(ex, {}).items():
             data = in_call(fs, 1, 1)
-            total = data["count"] if data else 0
+            total = int(data["count"]) if data else 0
             if total == 0:
                 continue
             total_pages = math.ceil(total / 60)
@@ -186,10 +166,11 @@ class Market(ABC, Generic[T, R]):
                 [stk_df, pd.DataFrame(tmp_list).assign(board=board)],
                 ignore_index=True,
             )
-        return stk_df[["cname", "symbol"]].rename(
+        return stk_df[["cname", "symbol", "market"]].rename(
             columns={
                 "symbol": "code",
                 "cname": "name",
+                "market": "board",
             }
         )
 
