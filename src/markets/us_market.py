@@ -1,5 +1,4 @@
 import pandas as pd
-from typing import Dict
 from functools import cached_property
 from core import Market
 from utils import DuckDBManager
@@ -8,9 +7,9 @@ from utils import DuckDBManager
 class USMarket(Market):
     """美股市场"""
 
-    def __init__(self, conf: Dict):
+    def __init__(self, conf):
         super().__init__()
-        self.db_path: str = conf.get("DB_PATH", ":memory:")
+        self.db_path: str = conf.database_path
 
     def spa_stock_info(self) -> str:
         table_name = "SECURITY"
@@ -22,9 +21,7 @@ class USMarket(Market):
             )
         DuckDBManager.insert_df(
             table_name,
-            Market.fetch_stock_from_sina("US").assign(exchange="US")[
-                ["exchange", "code", "name", "board"]
-            ],
+            Market.fetch_stock_from_sina("US").assign(exchange="US")[["exchange", "code", "name", "board"]],
             self.db_path,
         )
         return table_name

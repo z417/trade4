@@ -1,5 +1,4 @@
 import pandas as pd
-from typing import Dict
 from functools import cached_property
 from requests import Session
 from io import BytesIO
@@ -10,9 +9,9 @@ from utils import DuckDBManager
 class HKMarket(Market):
     """港股市场"""
 
-    def __init__(self, conf: Dict):
+    def __init__(self, conf):
         super().__init__()
-        self.db_path: str = conf.get("DB_PATH", ":memory:")
+        self.db_path: str = conf.database_path
 
     def _spa_stock_info_from_hkex(self) -> pd.DataFrame:
         with Session() as s:
@@ -27,9 +26,7 @@ class HKMarket(Market):
                     header=2,
                     usecols=["股份代號", "股份名稱", "分類", "次分類", "交易貨幣"],
                 )
-                .query(
-                    "分類=='股本' and 交易貨幣=='HKD' and 次分類 in ['股本證券(主板)', '股本證券(創業板)']"
-                )
+                .query("分類=='股本' and 交易貨幣=='HKD' and 次分類 in ['股本證券(主板)', '股本證券(創業板)']")
                 .rename(
                     columns={
                         "股份代號": "code",
@@ -38,9 +35,7 @@ class HKMarket(Market):
                     }
                 )
                 .assign(
-                    board=lambda df: df["board"].replace(
-                        {"股本證券(主板)": "Main", "股本證券(創業板)": "GEM"}
-                    ),
+                    board=lambda df: df["board"].replace({"股本證券(主板)": "Main", "股本證券(創業板)": "GEM"}),
                     exchange="HK",
                     code=lambda df: df["code"].astype(str).str.zfill(5),
                 )[["exchange", "code", "name", "board"]]

@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import List
 from longport.openapi import (
     Config,
     Language,
@@ -13,9 +13,9 @@ from core import Broker, WatchlistSecurityModel, SecurityStaticInfoModel
 class BrokerLongport(Broker):
     """长桥"""
 
-    def __init__(self, credentials: Dict):
+    def __init__(self, conf):
         super().__init__()
-        self.env: Dict = credentials
+        self.conf = conf
 
     def connect(
         self,
@@ -25,14 +25,14 @@ class BrokerLongport(Broker):
         enable_print_quote_packages=False,
     ):
         self.config: Config = Config(
-            app_key=self.env["LONGPORT_APP_KEY"],
-            app_secret=self.env["LONGPORT_APP_SECRET"],
-            access_token=self.env["LONGPORT_ACCESS_TOKEN"],
+            app_key=self.conf.longport_app_key,
+            app_secret=self.conf.longport_app_secret,
+            access_token=self.conf.longport_access_token,
             language=language,
             enable_overnight=enable_overnight,
             push_candlestick_mode=push_candlestick_mode,
             enable_print_quote_packages=enable_print_quote_packages,
-            log_path=self.env["LONGPORT_LOG_PATH"] or None,
+            log_path=self.conf.longport_log_path or None,
         )
         self.quote_ctx: QuoteContext = QuoteContext(self.config)
         self.trade_ctx: TradeContext = TradeContext(self.config)
@@ -76,9 +76,7 @@ class BrokerLongport(Broker):
         return self.trade_ctx.account_balance()
 
     def get_stock_static_info(self, symbols: List[str]):
-        batches = [
-            symbols[i : i + 500] for i in range(0, len(symbols), 500)
-        ]  # 每次限流500个
+        batches = [symbols[i : i + 500] for i in range(0, len(symbols), 500)]  # 每次限流500个
         return [
             SecurityStaticInfoModel(
                 symbol=x.symbol,

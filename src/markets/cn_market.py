@@ -1,6 +1,5 @@
 import warnings
 import pandas as pd
-from typing import Dict
 from functools import cached_property
 from requests import Session
 from io import BytesIO
@@ -11,9 +10,9 @@ from utils import DuckDBManager
 class CNMarket(Market):
     """A股市场"""
 
-    def __init__(self, conf: Dict):
+    def __init__(self, conf):
         super().__init__()
-        self.db_path: str = conf.get("DB_PATH", ":memory:")
+        self.db_path: str = conf.database_path
 
     def _spa_stock_info_from_szse(self) -> pd.DataFrame:
         with Session() as s:
@@ -35,9 +34,7 @@ class CNMarket(Market):
                         ),
                         usecols=["板块", "A股代码", "A股简称"],
                     )
-                    .rename(
-                        columns={"板块": "board", "A股代码": "code", "A股简称": "name"}
-                    )
+                    .rename(columns={"板块": "board", "A股代码": "code", "A股简称": "name"})
                     .assign(
                         exchange="SZ",
                         code=lambda df: df["code"]
@@ -46,9 +43,7 @@ class CNMarket(Market):
                         .iloc[:, 0]
                         .str.zfill(6)
                         .str.replace("000nan", ""),
-                        board=lambda df: df["board"].replace(
-                            {"主板": "A-shares", "创业板": "STAR"}
-                        ),
+                        board=lambda df: df["board"].replace({"主板": "A-shares", "创业板": "STAR"}),
                     )[["exchange", "code", "name", "board"]]
                 )
 
@@ -96,9 +91,9 @@ class CNMarket(Market):
                 .rename(columns={"A_STOCK_CODE": "code", "COMPANY_ABBR": "name"})
                 .assign(board="ChiNext")
             )[["code", "name", "board"]]
-        return pd.concat([tmp_df_a, tmp_df_kcb], ignore_index=True).assign(
-            exchange="SH"
-        )[["exchange", "code", "name", "board"]]
+        return pd.concat([tmp_df_a, tmp_df_kcb], ignore_index=True).assign(exchange="SH")[
+            ["exchange", "code", "name", "board"]
+        ]
 
     def spa_stock_info(self) -> str:
         table_name = "SECURITY"
