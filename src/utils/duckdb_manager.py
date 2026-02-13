@@ -1,5 +1,5 @@
 import duckdb
-from typing import Optional, Union, Literal
+from typing import Optional, Union, Literal, LiteralString
 import pandas as pd
 
 
@@ -22,7 +22,9 @@ class DuckDBManager:
 
     @staticmethod
     def execute(
-        sql: str, db_path: str = ":memory:", params: Optional[Union[tuple, dict]] = None
+        sql: LiteralString,
+        db_path: str = ":memory:",
+        params: Optional[Union[tuple, dict]] = None,
     ) -> None:
         """
         执行非查询 SQL(如 CREATE, INSERT, DELETE)
