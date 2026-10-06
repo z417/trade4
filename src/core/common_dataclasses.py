@@ -2,7 +2,21 @@ from dataclasses import dataclass, field, fields
 from typing import Optional, Any
 from datetime import datetime
 from decimal import Decimal
-from .common_fields import *
+from .common_fields import (
+    board,
+    bps,
+    currency,
+    dividend_yield,
+    eps,
+    eps_ttm,
+    exchange,
+    group_id,
+    group_name,
+    market,
+    name_cn,
+    stock_derivatives,
+    symbol,
+)
 
 
 @dataclass

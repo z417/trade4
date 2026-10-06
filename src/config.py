@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Optional
-from dotenv import load_dotenv
+from pathlib import Path
+from dotenv import load_dotenv, find_dotenv
 import os
 
 
@@ -166,8 +167,13 @@ class Config:
         2. .env 文件
         3. 代码中的默认值
         """
-        # 确保环境变量已加载
-        load_dotenv(".env")
+        # 确保环境变量已加载（向上查找根目录 .env 文件）
+        dotenv_file = find_dotenv()
+        if dotenv_file:
+            load_dotenv(dotenv_file)
+            project_root = Path(dotenv_file).parent
+        else:
+            project_root = Path(__file__).resolve().parent.parent
 
         # 解析自选股列表（逗号分隔）
         stock_list_str = os.getenv("STOCK_LIST", "")
@@ -190,11 +196,21 @@ class Config:
         brave_keys_str = os.getenv("BRAVE_API_KEYS", "")
         brave_api_keys = [k.strip() for k in brave_keys_str.split(",") if k.strip()]
 
+        raw_log_path = os.getenv("LONGPORT_LOG_PATH", "logs/longport")
+        longport_log_path = (
+            str(project_root / raw_log_path) if raw_log_path and not os.path.isabs(raw_log_path) else (raw_log_path or "")
+        )
+
+        raw_log_dir = os.getenv("LOG_DIR", "logs")
+        log_dir = (
+            str(project_root / raw_log_dir) if raw_log_dir and not os.path.isabs(raw_log_dir) else (raw_log_dir or str(project_root / "logs"))
+        )
+
         return cls(
             longport_app_key=os.getenv("LONGPORT_APP_KEY", ""),
             longport_app_secret=os.getenv("LONGPORT_APP_SECRET", ""),
             longport_access_token=os.getenv("LONGPORT_ACCESS_TOKEN", ""),
-            longport_log_path=os.getenv("LONGPORT_LOG_PATH", ""),
+            longport_log_path=longport_log_path,
             stock_list=stock_list,
             feishu_app_id=os.getenv("FEISHU_APP_ID"),
             feishu_app_secret=os.getenv("FEISHU_APP_SECRET"),
@@ -219,14 +235,18 @@ class Config:
             report_type=os.getenv("REPORT_TYPE", "simple").lower(),
             analysis_delay=float(os.getenv("ANALYSIS_DELAY", "0")),
             feishu_max_bytes=int(os.getenv("FEISHU_MAX_BYTES", "20000")),
-            database_path=os.getenv("DATABASE_PATH", "./data/trade4.duckdb"),
+            database_path=str(
+                project_root / (os.getenv("DATABASE_PATH") or os.getenv("DB_PATH", "data/trade4.duckdb"))
+                if not os.path.isabs(os.getenv("DATABASE_PATH") or os.getenv("DB_PATH", "data/trade4.duckdb"))
+                else (os.getenv("DATABASE_PATH") or os.getenv("DB_PATH", "data/trade4.duckdb"))
+            ),
             save_context_snapshot=os.getenv("SAVE_CONTEXT_SNAPSHOT", "true").lower() == "true",
             backtest_enabled=os.getenv("BACKTEST_ENABLED", "true").lower() == "true",
             backtest_eval_window_days=int(os.getenv("BACKTEST_EVAL_WINDOW_DAYS", "10")),
             backtest_min_age_days=int(os.getenv("BACKTEST_MIN_AGE_DAYS", "14")),
             backtest_engine_version=os.getenv("BACKTEST_ENGINE_VERSION", "v1"),
             backtest_neutral_band_pct=float(os.getenv("BACKTEST_NEUTRAL_BAND_PCT", "2.0")),
-            log_dir=os.getenv("LOG_DIR", "./logs"),
+            log_dir=log_dir,
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             max_workers=int(os.getenv("MAX_WORKERS", "3")),
             debug=os.getenv("DEBUG", "false").lower() == "true",
@@ -337,14 +357,6 @@ class Config:
             warnings.append("提示：未配置通知渠道，将不发送推送通知")
 
         return warnings
-
-    def get_db_url(self) -> str:
-        """
-        获取 SQLAlchemy 数据库连接 URL
-
-        自动创建数据库目录（如果不存在）
-        """
-        return f"sqlite:///{self.database_path}"
 
 
 # === 便捷的配置访问函数 ===

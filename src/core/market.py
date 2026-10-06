@@ -5,7 +5,8 @@ import requests
 import pandas as pd
 from multiprocessing.dummy import Pool
 from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, Literal
+from typing import TypeVar, Generic, Literal, Sequence
+import pandas as pd
 
 
 T = TypeVar("T")
@@ -21,8 +22,33 @@ class Market(ABC, Generic[T, R]):
         return cls._instances[cls]
 
     @abstractmethod
-    def spa_stock_info(self):
+    def spa_stock_info(self) -> str:
+        """抓取并入库市场标的信息，返回表名"""
         pass
+
+    def _save_securities_to_db(self, df: pd.DataFrame, exchanges: Sequence[str]) -> str:
+        """
+        统一持久化标的至 DuckDB SECURITY 表
+
+        自动检测表结构并清理指定交易所的历史记录，避免重复写入
+        """
+        from utils import DuckDBManager
+
+        table_name = "SECURITY"
+        db_path = getattr(self, "db_path", ":memory:")
+        if DuckDBManager.table_exists(table_name, db_path):
+            cols = DuckDBManager.get_columns(table_name, db_path)
+            if "symbol" not in cols:
+                DuckDBManager.execute(f'DROP TABLE "{table_name}";', db_path)
+            else:
+                placeholders = ", ".join("?" for _ in exchanges)
+                DuckDBManager.execute(
+                    f'DELETE FROM "{table_name}" WHERE exchange IN ({placeholders});',
+                    db_path,
+                    params=tuple(exchanges),
+                )
+        DuckDBManager.insert_df(table_name, df, db_path=db_path)
+        return table_name
 
     @classmethod
     def fetch_stock_from_eastmoney(
@@ -70,10 +96,7 @@ class Market(ABC, Generic[T, R]):
                     },
                 ).json()
             except requests.RequestException as e:
-                import sys
-
-                print(e)
-                sys.exit(1)
+                raise RuntimeError(f"东方财富接口请求异常: {e}") from e
 
         for board, fs in filter_str.get(ex, {}).items():
             data = in_call(fs, fields, 1, 1)
@@ -140,10 +163,7 @@ class Market(ABC, Generic[T, R]):
                 ).text
                 match = re.search(r"jQuery\((\{.*\})\)", jsonp_str, re.DOTALL)
             except requests.RequestException as e:
-                import sys
-
-                print(e)
-                sys.exit(1)
+                raise RuntimeError(f"新浪财经接口请求异常: {e}") from e
 
             return json.loads(match.group(1)) if match else {}
 

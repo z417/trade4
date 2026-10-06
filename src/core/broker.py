@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Literal, TypeVar, Generic
+import pandas as pd
 from .common_dataclasses import WatchlistSecurityModel, SecurityStaticInfoModel
 
 T = TypeVar("T")
@@ -38,9 +39,14 @@ class Broker(ABC, Generic[T, R]):
 
     @property
     @abstractmethod
-    def watchlistGroups(self) -> List[Dict[Literal["id", "name"], int | str]]:
-        """所有分组"""
+    def watchlist_groups(self) -> List[Dict[Literal["id", "name"], int | str]]:
+        """所有自选分组"""
         pass
+
+    @property
+    def watchlistGroups(self) -> List[Dict[Literal["id", "name"], int | str]]:
+        """向后兼容属性别名"""
+        return self.watchlist_groups
 
     @property
     @abstractmethod
@@ -55,6 +61,13 @@ class Broker(ABC, Generic[T, R]):
         self, symbols: List[str]
     ) -> List[SecurityStaticInfoModel]:
         """获取标的基本信息"""
+        pass
+
+    @abstractmethod
+    def get_history_candlesticks(
+        self, symbol: str, count: int = 100
+    ) -> pd.DataFrame:
+        """获取标的历史日K线"""
         pass
 
 

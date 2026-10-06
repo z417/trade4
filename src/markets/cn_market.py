@@ -18,34 +18,37 @@ class CNMarket(Market):
         with Session() as s:
             with warnings.catch_warnings(record=True):
                 warnings.simplefilter("always")
-                return (
-                    pd.read_excel(
-                        BytesIO(
-                            s.get(
-                                "https://www.szse.cn/api/report/ShowReport",
-                                params={
-                                    "SHOWTYPE": "xlsx",
-                                    "CATALOGID": "1110",
-                                    "TABKEY": "tab1",
-                                    "random": "0.6935816432433362",
-                                },
-                                timeout=15,
-                            ).content
-                        ),
-                        usecols=["板块", "A股代码", "A股简称"],
-                    )
-                    .rename(columns={"板块": "board", "A股代码": "code", "A股简称": "name"})
+                raw_df = pd.read_excel(
+                    BytesIO(
+                        s.get(
+                            "https://www.szse.cn/api/report/ShowReport",
+                            params={
+                                "SHOWTYPE": "xlsx",
+                                "CATALOGID": "1110",
+                                "TABKEY": "tab1",
+                                "random": "0.6935816432433362",
+                            },
+                            timeout=15,
+                        ).content
+                    ),
+                    usecols=["板块", "A股代码", "A股简称"],
+                )
+                df = (
+                    raw_df.rename(columns={"板块": "board", "A股代码": "code", "A股简称": "name"})
                     .assign(
                         exchange="SZ",
-                        code=lambda df: df["code"]
+                        code=lambda d: d["code"]
                         .astype(str)
                         .str.split(".", expand=True)
                         .iloc[:, 0]
                         .str.zfill(6)
                         .str.replace("000nan", ""),
-                        board=lambda df: df["board"].replace({"主板": "A-shares", "创业板": "STAR"}),
-                    )[["exchange", "code", "name", "board"]]
+                        board=lambda d: d["board"].replace({"主板": "Main", "创业板": "ChiNext"}),
+                    )
                 )
+                df = df[df["code"].str.len() == 6].copy()
+                df["symbol"] = df["code"] + ".SZ"
+                return df[["symbol", "exchange", "code", "name", "board"]]
 
     def _spa_stock_info_from_sse(self) -> pd.DataFrame:
         with Session() as s:
@@ -79,7 +82,7 @@ class CNMarket(Market):
                     ).json()["result"]
                 )
                 .rename(columns={"A_STOCK_CODE": "code", "COMPANY_ABBR": "name"})
-                .assign(board="A-shares")
+                .assign(board="Main")
             )[["code", "name", "board"]]
             tmp_df_kcb = (
                 pd.DataFrame(
@@ -89,49 +92,34 @@ class CNMarket(Market):
                     ).json()["result"]
                 )
                 .rename(columns={"A_STOCK_CODE": "code", "COMPANY_ABBR": "name"})
-                .assign(board="ChiNext")
+                .assign(board="STAR")
             )[["code", "name", "board"]]
-        return pd.concat([tmp_df_a, tmp_df_kcb], ignore_index=True).assign(exchange="SH")[
-            ["exchange", "code", "name", "board"]
-        ]
+        df = pd.concat([tmp_df_a, tmp_df_kcb], ignore_index=True).assign(exchange="SH")
+        df["code"] = df["code"].astype(str).str.zfill(6)
+        df = df[df["code"].str.len() == 6].copy()
+        df["symbol"] = df["code"] + ".SH"
+        return df[["symbol", "exchange", "code", "name", "board"]]
 
     def spa_stock_info(self) -> str:
-        table_name = "SECURITY"
-        # stock_sz = Market.fetch_stock_from_eastmoney(
-        #     "SZSE",
-        # ).assign(
-        #     exchange="SZ",
-        #     code=lambda df: df["code"]
-        #     .astype(str)
-        #     .str.split(".", expand=True)
-        #     .iloc[:, 0]
-        #     .str.zfill(6)
-        #     .str.replace("000nan", ""),
-        # )
         stock_sz = self._spa_stock_info_from_szse()
-        # stock_sh = Market.fetch_stock_from_eastmoney("SSE").assign(exchange="SH")
         stock_sh = self._spa_stock_info_from_sse()
-        if DuckDBManager.table_exists(table_name, self.db_path):
-            DuckDBManager.execute(
-                f"DELETE FROM {table_name} WHERE EXCHANGE IN(?,?);",
-                self.db_path,
-                params=("SH", "SZ"),
-            )
-        DuckDBManager.insert_df(
-            table_name,
-            pd.concat([stock_sz, stock_sh], ignore_index=True),
-            self.db_path,
-        )
-        return table_name
+        combined_df = pd.concat([stock_sz, stock_sh], ignore_index=True)
+        return self._save_securities_to_db(combined_df, ("SH", "SZ"))
 
     @property
     def trading_hours(self):
-        print("CNMarket: Getting trading hours...")
+        """A股交易时间：9:30-11:30, 13:00-15:00 (北京时间)"""
+        return {
+            "pre_market": ("09:15", "09:25"),
+            "morning": ("09:30", "11:30"),
+            "afternoon": ("13:00", "15:00"),
+            "timezone": "Asia/Shanghai",
+        }
 
     @cached_property
     def security_list(self):
         return DuckDBManager.query_df(
-            sql="SELECT * FROM security WHERE EXCHANGE IN(?,?);",
+            sql="SELECT * FROM SECURITY WHERE exchange IN (?, ?);",
             db_path=self.db_path,
             params=("SH", "SZ"),
         )

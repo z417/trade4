@@ -38,34 +38,27 @@ class HKMarket(Market):
                     board=lambda df: df["board"].replace({"股本證券(主板)": "Main", "股本證券(創業板)": "GEM"}),
                     exchange="HK",
                     code=lambda df: df["code"].astype(str).str.zfill(5),
-                )[["exchange", "code", "name", "board"]]
+                    symbol=lambda df: df["code"].astype(str).str.lstrip("0") + ".HK",
+                )[["symbol", "exchange", "code", "name", "board"]]
             )
         return tmp_df
 
     def spa_stock_info(self) -> str:
-        table_name = "SECURITY"
-        if DuckDBManager.table_exists(table_name, self.db_path):
-            DuckDBManager.execute(
-                f"DELETE FROM {table_name} WHERE EXCHANGE = ?;",
-                self.db_path,
-                params=("HK",),
-            )
-        DuckDBManager.insert_df(
-            table_name,
-            self._spa_stock_info_from_hkex(),
-            # Market.fetch_stock_from_eastmoney("HKEX").assign(exchange="HK"),
-            self.db_path,
-        )
-        return table_name
+        return self._save_securities_to_db(self._spa_stock_info_from_hkex(), ("HK",))
 
     @property
     def trading_hours(self):
-        print("HKMarket: Getting trading hours...")
+        """港股交易时间：9:30-12:00, 13:00-16:00 (北京时间)"""
+        return {
+            "morning": ("09:30", "12:00"),
+            "afternoon": ("13:00", "16:00"),
+            "timezone": "Asia/Hong_Kong",
+        }
 
     @cached_property
     def security_list(self):
         return DuckDBManager.query_df(
-            sql="SELECT * FROM security WHERE EXCHANGE = ?;",
+            sql="SELECT * FROM SECURITY WHERE exchange = ?;",
             db_path=self.db_path,
             params=("HK",),
         )

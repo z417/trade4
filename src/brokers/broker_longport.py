@@ -1,11 +1,14 @@
-from typing import List
+from typing import List, Optional
+from decimal import Decimal
+import pandas as pd
 from longport.openapi import (
     Config,
     Language,
     PushCandlestickMode,
     QuoteContext,
     TradeContext,
-    HttpClient,
+    Period,
+    AdjustType,
 )
 from core import Broker, WatchlistSecurityModel, SecurityStaticInfoModel
 
@@ -16,6 +19,9 @@ class BrokerLongport(Broker):
     def __init__(self, conf):
         super().__init__()
         self.conf = conf
+        self.config: Optional[Config] = None
+        self.quote_ctx: Optional[QuoteContext] = None
+        self.trade_ctx: Optional[TradeContext] = None
 
     def connect(
         self,
@@ -36,16 +42,23 @@ class BrokerLongport(Broker):
         )
         self.quote_ctx: QuoteContext = QuoteContext(self.config)
         self.trade_ctx: TradeContext = TradeContext(self.config)
-        self.http_cli: HttpClient = HttpClient.from_env()
         return self
 
-    def get_watchlist_by_group(self, group_name: str):
-        tmp = next(
-            filter(
-                lambda x: x.name == group_name,
-                self.quote_ctx.watchlist(),
-            ),
-        )
+    def _ensure_quote_ctx(self) -> QuoteContext:
+        if self.quote_ctx is None:
+            raise RuntimeError("QuoteContext 未初始化，请先调用 connect()")
+        return self.quote_ctx
+
+    def _ensure_trade_ctx(self) -> TradeContext:
+        if self.trade_ctx is None:
+            raise RuntimeError("TradeContext 未初始化，请先调用 connect()")
+        return self.trade_ctx
+
+    def get_watchlist_by_group(self, group_name: str) -> List[WatchlistSecurityModel]:
+        ctx = self._ensure_quote_ctx()
+        group = next((x for x in ctx.watchlist() if x.name == group_name), None)
+        if group is None:
+            return []
         return [
             WatchlistSecurityModel(
                 symbol=watchlistSecurity.symbol,
@@ -53,10 +66,10 @@ class BrokerLongport(Broker):
                 name=watchlistSecurity.name,
                 watched_price=watchlistSecurity.watched_price,
                 watched_at=watchlistSecurity.watched_at,
-                group_id=tmp.id,
-                group_name=tmp.name,
+                group_id=group.id,
+                group_name=group.name,
             )
-            for watchlistSecurity in tmp.securities
+            for watchlistSecurity in group.securities
         ]
 
     @property
@@ -68,14 +81,21 @@ class BrokerLongport(Broker):
         return self.get_watchlist_by_group("holdings")
 
     @property
+    def watchlist_groups(self):
+        ctx = self._ensure_quote_ctx()
+        return [{"id": x.id, "name": x.name} for x in ctx.watchlist()]
+
+    @property
     def watchlistGroups(self):
-        return [{"id": x.id, "name": x.name} for x in self.quote_ctx.watchlist()]
+        return self.watchlist_groups
 
     @property
     def account_balance(self):
-        return self.trade_ctx.account_balance()
+        ctx = self._ensure_trade_ctx()
+        return ctx.account_balance()
 
     def get_stock_static_info(self, symbols: List[str]):
+        ctx = self._ensure_quote_ctx()
         batches = [symbols[i : i + 500] for i in range(0, len(symbols), 500)]  # 每次限流500个
         return [
             SecurityStaticInfoModel(
@@ -94,5 +114,43 @@ class BrokerLongport(Broker):
                 board=x.board,
             )
             for batch in batches
-            for x in self.quote_ctx.static_info(batch)
+            for x in ctx.static_info(batch)
         ]
+
+    def get_history_candlesticks(
+        self, symbol: str, count: int = 100
+    ) -> pd.DataFrame:
+        """
+        获取指定标的的历史日K线（前复权）
+
+        :param symbol: 标的代码，长桥格式如 '000001.SZ'
+        :param count: 获取K线数量，默认100根
+        :return: 包含 symbol, date, open, high, low, close, volume, turnover 的标准 DataFrame
+        """
+        ctx = self._ensure_quote_ctx()
+        candlesticks = ctx.candlesticks(
+            symbol=symbol,
+            period=Period.Day,
+            count=count,
+            adjust_type=AdjustType.ForwardAdjust,
+        )
+        records = []
+        for c in candlesticks:
+            ts = c.timestamp
+            if isinstance(ts, (int, float)):
+                dt = pd.to_datetime(ts, unit="s")
+            else:
+                dt = pd.to_datetime(ts)
+            records.append(
+                {
+                    "symbol": symbol,
+                    "date": dt,
+                    "open": Decimal(str(c.open)),
+                    "high": Decimal(str(c.high)),
+                    "low": Decimal(str(c.low)),
+                    "close": Decimal(str(c.close)),
+                    "volume": int(c.volume),
+                    "turnover": Decimal(str(c.turnover)),
+                }
+            )
+        return pd.DataFrame(records)
