@@ -1,4 +1,4 @@
-from .ai import BaseAi
+from .ai import AiService
 from .broker import Broker
 from .db_ops import DatabaseService
 from .common_dataclasses import WatchlistSecurityModel, SecurityStaticInfoModel
@@ -6,7 +6,7 @@ from .market import Market
 
 
 __all__ = [
-    "BaseAi",
+    "AiService",
     "Broker",
     "DatabaseService",
     "WatchlistSecurityModel",

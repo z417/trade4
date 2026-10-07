@@ -1,19 +1,10 @@
-from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, Any
-
-T = TypeVar("T")
-R = TypeVar("R")
+from typing import Callable, Coroutine, NamedTuple, Any
 
 
-class BaseAi(ABC, Generic[T, R]):
-    _instances = {}
+class AiService(NamedTuple):
+    """AI 服务集合 (Immutable Record)"""
 
-    def __new__(cls, *args, **kw):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(BaseAi, cls).__new__(cls, *args, **kw)
-        return cls._instances[cls]
+    analyze: Callable[[str], Coroutine[Any, Any, str]]
 
-    @abstractmethod
-    def login(self, *args: T, **kw: Any) -> R:
-        """登ai平台"""
-        pass
+
+__all__ = ["AiService"]
