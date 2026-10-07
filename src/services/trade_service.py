@@ -8,6 +8,10 @@ class TradeService:
         self.broker: Broker = broker
         self.market: Market = market
 
-    def test(self) -> None:
+    async def test(self) -> None:
         """获取账户余额测试"""
-        print(self.broker.account_balance)
+        balance = await self.broker.get_account_balance()
+        print(balance)
+
+
+__all__ = ["TradeService"]

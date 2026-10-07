@@ -1,5 +1,5 @@
-from .broker_longport import BrokerLongport
+from .broker_longbridge import create_longbridge_broker
 
 __all__ = [
-    "BrokerLongport",
+    "create_longbridge_broker",
 ]

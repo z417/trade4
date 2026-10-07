@@ -1,26 +1,18 @@
-import math
-import re
-import json
-import requests
+from abc import abstractmethod
+from typing import Callable, Coroutine, NamedTuple, Any
 import pandas as pd
 from multiprocessing.dummy import Pool
-from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, Literal, Sequence
-import pandas as pd
 
 
-T = TypeVar("T")
-R = TypeVar("R")
-
-
-class Market(ABC, Generic[T, R]):
+class Market(NamedTuple):
     _instances = {}
 
-    def __new__(cls, *args, **kw):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Market, cls).__new__(cls)
-        return cls._instances[cls]
+    """市场层操作集合 (Immutable Record)"""
+    spa_stock_info: Callable[[], Coroutine[Any, Any, str]]
+    get_trading_hours: Callable[[], Coroutine[Any, Any, str]]
+    get_security_list: Callable[[], Coroutine[Any, Any, pd.DataFrame]]
 
+    '''
     @abstractmethod
     def spa_stock_info(self) -> str:
         """抓取并入库市场标的信息，返回表名"""
@@ -203,6 +195,6 @@ class Market(ABC, Generic[T, R]):
     @abstractmethod
     def security_list(self) -> pd.DataFrame:
         pass
-
+    '''
 
 __all__ = ["Market"]

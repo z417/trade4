@@ -1,37 +1,60 @@
+import asyncio
+from typing import Optional
 import pandas as pd
-from functools import cached_property
-from core import Market
-from utils import DuckDBManager
+from core import Market, DatabaseService
+from utils.async_fetchers import fetch_stock_from_sina_async
+from utils import logger
 
 
-class USMarket(Market):
-    """美股市场"""
+def USMarket(conf, db: Optional[DatabaseService] = None) -> Market:
+    """
+    美股市场闭包工厂：遵循 Market(NamedTuple) 契约，全异步实现
+    """
+    db_path: str = conf.database_path
 
-    def __init__(self, conf):
-        super().__init__()
-        self.db_path: str = conf.database_path
+    async def spa_stock_info() -> str:
+        try:
+            raw_df = await fetch_stock_from_sina_async("US")
+            if not raw_df.empty:
+                us_df = raw_df.assign(
+                    exchange="US",
+                    symbol=lambda df: df["code"] + ".US",
+                )[["symbol", "exchange", "code", "name", "board"]]
+                if db is not None:
+                    await db.insert_df("SECURITY", us_df, if_exists="append")
+                else:
+                    import duckdb
+                    def _write():
+                        with duckdb.connect(db_path) as conn:
+                            conn.register("__temp_us", us_df)
+                            conn.execute("INSERT INTO SECURITY SELECT * FROM __temp_us;")
+                            conn.unregister("__temp_us")
+                    await asyncio.to_thread(_write)
+        except Exception as e:
+            logger.warning(f"美股标的抓取失败: {e}")
+        return "SECURITY"
 
-    def spa_stock_info(self) -> str:
-        us_df = Market.fetch_stock_from_sina("US").assign(
-            exchange="US",
-            symbol=lambda df: df["code"] + ".US",
-        )[["symbol", "exchange", "code", "name", "board"]]
-        return self._save_securities_to_db(us_df, ("US",))
+    async def get_trading_hours() -> str:
+        return "09:30-16:00 (America/New_York)"
 
-    @property
-    def trading_hours(self):
-        """美股交易时间：09:30-16:00 (美东时间)"""
-        return {
-            "pre_market": ("04:00", "09:30"),
-            "regular": ("09:30", "16:00"),
-            "post_market": ("16:00", "20:00"),
-            "timezone": "America/New_York",
-        }
+    async def get_security_list() -> pd.DataFrame:
+        sql = "SELECT * FROM SECURITY WHERE exchange = 'US';"
+        if db is not None:
+            return await db.query_df(sql)
+        import duckdb
+        def _read():
+            with duckdb.connect(db_path) as conn:
+                try:
+                    return conn.execute(sql).fetchdf()
+                except Exception:
+                    return pd.DataFrame()
+        return await asyncio.to_thread(_read)
 
-    @cached_property
-    def security_list(self):
-        return DuckDBManager.query_df(
-            sql="SELECT * FROM SECURITY WHERE exchange = ?;",
-            db_path=self.db_path,
-            params=("US",),
-        )
+    return Market(
+        spa_stock_info=spa_stock_info,
+        get_trading_hours=get_trading_hours,
+        get_security_list=get_security_list,
+    )
+
+
+__all__ = ["USMarket"]

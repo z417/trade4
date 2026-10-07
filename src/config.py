@@ -17,10 +17,10 @@ class Config:
     """
 
     # === 券商（长桥）配置 ===
-    longport_app_key: Optional[str] = None
-    longport_app_secret: Optional[str] = None
-    longport_access_token: Optional[str] = None
-    longport_log_path: Optional[str] = None
+    longbridge_app_key: Optional[str] = None
+    longbridge_app_secret: Optional[str] = None
+    longbridge_access_token: Optional[str] = None
+    longbridge_log_path: Optional[str] = None
 
     # === 自选股配置 ===
     stock_list: List[str] = field(default_factory=list)
@@ -196,8 +196,8 @@ class Config:
         brave_keys_str = os.getenv("BRAVE_API_KEYS", "")
         brave_api_keys = [k.strip() for k in brave_keys_str.split(",") if k.strip()]
 
-        raw_log_path = os.getenv("LONGPORT_LOG_PATH", "logs/longport")
-        longport_log_path = (
+        raw_log_path = os.getenv("LONGBRIDGE_LOG_PATH", "logs/longbridge")
+        longbridge_log_path = (
             str(project_root / raw_log_path) if raw_log_path and not os.path.isabs(raw_log_path) else (raw_log_path or "")
         )
 
@@ -207,10 +207,10 @@ class Config:
         )
 
         return cls(
-            longport_app_key=os.getenv("LONGPORT_APP_KEY", ""),
-            longport_app_secret=os.getenv("LONGPORT_APP_SECRET", ""),
-            longport_access_token=os.getenv("LONGPORT_ACCESS_TOKEN", ""),
-            longport_log_path=longport_log_path,
+            longbridge_app_key=os.getenv("LONGBRIDGE_APP_KEY"),
+            longbridge_app_secret=os.getenv("LONGBRIDGE_APP_SECRET"),
+            longbridge_access_token=os.getenv("LONGBRIDGE_ACCESS_TOKEN"),
+            longbridge_log_path=longbridge_log_path,
             stock_list=stock_list,
             feishu_app_id=os.getenv("FEISHU_APP_ID"),
             feishu_app_secret=os.getenv("FEISHU_APP_SECRET"),

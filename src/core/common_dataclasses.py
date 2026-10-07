@@ -19,7 +19,7 @@ from .common_fields import (
 )
 
 
-@dataclass
+@dataclass(frozen=True, kw_only=True)
 class BaseDataclass:
     def __repr__(self) -> str:
         lines = [f"{self.__class__.__name__}("]
@@ -31,7 +31,7 @@ class BaseDataclass:
         return "\n".join(lines)
 
 
-@dataclass(repr=False)
+@dataclass(frozen=True, kw_only=True, repr=False)
 class WatchlistSecurityModel(BaseDataclass):
     """自选标的"""
 
@@ -44,7 +44,7 @@ class WatchlistSecurityModel(BaseDataclass):
     market: Any = market
 
 
-@dataclass(repr=False)
+@dataclass(frozen=True, kw_only=True, repr=False)
 class SecurityStaticInfoModel(BaseDataclass):
     """标的基本信息"""
 

@@ -3,250 +3,101 @@ import os
 import sys
 import time
 from functools import wraps
-from typing import Any, AsyncGenerator, Callable
+from typing import Any, Callable, Coroutine
+from contextlib import contextmanager, asynccontextmanager
 
 
-class ProgressBar:
-    @staticmethod
-    def _clear_line():
-        """Clear the current line in the terminal."""
-        sys.stdout.write("\033[K")
-
-    @staticmethod
-    def _get_terminal_width(default=80) -> int:
-        """Get the width of the terminal or use a default value."""
-        try:
-            _, columns = os.get_terminal_size()
-            return columns
-        except OSError:
-            return default
-
-    @staticmethod
-    def _init_bar_percent(
-        iteration,
-        total,
-        decimals,
-        fill,
-    ):
-        bar_length = ProgressBar._get_terminal_width()
-        percent = ("{0:." + str(decimals) + "f}").format(
-            100 * (iteration / float(total))
-        )
-        filled_length = int(bar_length * iteration // total)
-        bar = fill * filled_length + "-" * (bar_length - filled_length)
-
-        # Clear the line before printing the new progress bar
-        ProgressBar._clear_line()
-        return bar, percent
-
-    @staticmethod
-    def progress_bar_sync(
-        iteration,
-        total,
-        prefix="",
-        suffix="",
-        decimals=2,
-        fill="█",
-        refresh_rate=0.1,
-    ):
-        """
-        Update the progress bar synchronously.
-        @params:
-            iteration   - Required  : current iteration (Int)
-            total       - Required  : total iterations (Int)
-            prefix      - Optional  : prefix string (Str)
-            suffix      - Optional  : suffix string (Str)
-            decimals    - Optional  : positive number of decimals in percent complete (Int)
-            fill        - Optional  : bar fill character (Str)
-            refresh_rate- Optional  : bar refresh rate (float)
-        """
-        bar, percent = ProgressBar._init_bar_percent(
-            iteration,
-            total,
-            decimals,
-            fill,
-        )
-        # 使用 \r 回车符确保光标回到行首
-        print(f"\r{prefix} |{bar}| {percent}% {suffix}", end="")
-        # Only update the progress bar every `refresh_rate` seconds
-        if iteration != 0 and iteration % (total * refresh_rate) == 0:
-            sys.stdout.flush()
-            time.sleep(refresh_rate)
-
-        if iteration == total:
-            print()
-
-    @staticmethod
-    async def progress_bar_async(
-        iteration,
-        total,
-        prefix="",
-        suffix="",
-        decimals=1,
-        fill="█",
-        refresh_rate=0.1,
-    ):
-        """
-        Update the progress bar asynchronously.
-        @params:
-            iteration   - Required  : current iteration (Int)
-            total       - Required  : total iterations (Int)
-            prefix      - Optional  : prefix string (Str)
-            suffix      - Optional  : suffix string (Str)
-            decimals    - Optional  : positive number of decimals in percent complete (Int)
-            fill        - Optional  : bar fill character (Str)
-            refresh_rate- Optional  : bar refresh rate (float)
-        """
-        bar, percent = ProgressBar._init_bar_percent(
-            iteration,
-            total,
-            decimals,
-            fill,
-        )
-
-        print(f"\r{prefix} |{bar}| {percent}% {suffix}", end="")
-
-        # Only update the progress bar every `refresh_rate` seconds
-        if iteration != 0 and iteration % (total * refresh_rate) == 0:
-            sys.stdout.flush()
-            await asyncio.sleep(refresh_rate)
-
-        if iteration == total:
-            print()
+# ==========================================
+# 进度条模块
+# ==========================================
+def _get_terminal_width(default: int = 80) -> int:
+    try:
+        _, columns = os.get_terminal_size()
+        return columns
+    except OSError:
+        return default
 
 
-class TimerDecorator:
-    @staticmethod
-    def timer(output: Callable, desc: str):
-        def wrapper(func):
-            @wraps(func)
-            def inner(*args, **kwargs):
-                start = time.perf_counter()  # 使用 perf_counter 提高精度
-                try:
-                    res = func(*args, **kwargs)
-                except Exception as e:
-                    output(f"{desc}发生异常: {e}")
-                    raise e
-                else:
-                    end = time.perf_counter()
-                    output(f"{desc}耗时: {end - start:.2f}秒")
-                    return res
+def _build_bar_string(iteration: int, total: int, decimals: int, fill: str) -> tuple[str, str]:
+    bar_length = _get_terminal_width()
+    percent_str = f"{100 * (iteration / float(total)):.{decimals}f}"
+    filled_length = int(bar_length * iteration // total)
+    bar = fill * filled_length + "-" * (bar_length - filled_length)
+    return bar, percent_str
 
-            return inner
+
+async def print_progress_async(
+    iteration: int,
+    total: int,
+    prefix: str = "",
+    suffix: str = "",
+    decimals: int = 1,
+    fill: str = "█",
+    refresh_rate: float = 0.1,
+) -> None:
+    """全异步进度条"""
+    bar, percent = _build_bar_string(iteration, total, decimals, fill)
+    sys.stdout.write("\033[K")  # Clear line
+    print(f"\r{prefix} |{bar}| {percent}% {suffix}", end="")
+
+    if iteration != 0 and iteration % max(1, int(total * refresh_rate)) == 0:
+        sys.stdout.flush()
+        await asyncio.sleep(refresh_rate)
+
+    if iteration == total:
+        print()
+
+
+# ==========================================
+# 耗时统计模块
+# ==========================================
+# 1. 函数装饰器
+def time_async(desc: str, output: Callable[[str], Any] = print) -> Callable:
+    """异步耗时统计装饰器"""
+
+    def decorator(func: Callable[..., Coroutine[Any, Any, Any]]) -> Callable[..., Coroutine[Any, Any, Any]]:
+        @wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            start = time.perf_counter()
+            try:
+                return await func(*args, **kwargs)
+            except Exception as e:
+                output(f"[{desc}] 执行失败: {e}")
+                raise
+            finally:
+                output(f"{desc} 耗时: {time.perf_counter() - start:.2f}秒")
 
         return wrapper
 
-    @staticmethod
-    def timer_yield(output: Callable, desc: str):
-        def wrapper(func):
-            @wraps(func)
-            def inner(*args, **kwargs):
-                start = time.perf_counter()
-                generator = func(*args, **kwargs)
-                try:
-                    yield from generator
-                finally:
-                    end = time.perf_counter()
-                    output(f"{desc}耗时: {end - start:.2f}秒")
-
-            return inner
-
-        return wrapper
-
-    @staticmethod
-    def timer_async(output: Callable, desc: str) -> Callable:
-        def wrapper(func: Callable[..., Any]) -> Callable:
-            @wraps(func)
-            async def inner(*args, **kwargs) -> Any:
-                start = time.perf_counter()
-                try:
-                    res = await func(*args, **kwargs)
-                except Exception as e:
-                    output(f"{desc}发生异常: {e}")
-                    raise e
-                else:
-                    end = time.perf_counter()
-                    output(f"{desc}耗时: {end - start:.2f}秒")
-                    return res
-
-            return inner
-
-        return wrapper
-
-    @staticmethod
-    def timer_async_yield(output: Callable, desc: str) -> Callable:
-        def wrapper(func: Callable[..., AsyncGenerator[Any, None]]) -> Callable:
-            @wraps(func)
-            async def inner(*args, **kwargs) -> AsyncGenerator[Any, None]:
-                start = time.perf_counter()
-                async_generator = func(*args, **kwargs)
-                try:
-                    async for item in async_generator:
-                        yield item
-                finally:
-                    end = time.perf_counter()
-                    output(f"{desc}耗时: {round((end - start), 2)}秒")
-
-            return inner
-
-        return wrapper
+    return decorator
 
 
-class Timer:
-    def __init__(self, out=print, desc="") -> None:
-        self.out = out
-        self.desc = desc
-
-    def __enter__(self):
-        self.start_time = time.perf_counter()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.end_time = time.perf_counter()
-        self.elapsed_time = self.end_time - self.start_time
-        self.out(f"{self.desc}耗时: {self.elapsed_time:.2f}秒")
-
-    @property
-    def elapsed(self):
-        return self.end_time - self.start_time
+# 2. 上下文管理器
+@contextmanager
+def timer_scope(desc: str, output: Callable[[str], Any] = print):
+    """同步作用域计时器"""
+    start = time.perf_counter()
+    try:
+        yield  # 将控制权交给 with 语句块
+    finally:
+        output(f"{desc} 耗时: {time.perf_counter() - start:.2f}秒")
 
 
-class AsyncTimer:
-    def __init__(self, out=print, desc=""):
-        self.start_time = 0.0
-        self.end_time = 0.0
-        self.elapsed_time = 0.0
-        self.out = out
-        self.desc = desc
+@asynccontextmanager
+async def async_timer_scope(desc: str, output: Callable[[str], Any] = print):
+    """异步作用域计时器"""
+    start = asyncio.get_running_loop().time()
+    try:
+        yield
+    finally:
+        output(f"{desc} 耗时: {asyncio.get_running_loop().time() - start:.2f}秒")
 
-    async def __aenter__(self):
-        self.start_time = asyncio.get_running_loop().time()
-        return self
 
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        self.end_time = asyncio.get_running_loop().time()
-        self.elapsed_time = self.end_time - self.start_time
-        self.out(f"{self.desc}耗时: {self.elapsed_time:.2f}秒")
-
-    @property
-    def elapsed(self):
-        if self.end_time is None:
-            return None
-        return self.end_time - self.start_time
-
+__all__ = ["print_progress_async", "time_async", "timer_scope", "async_timer_scope"]
 
 if __name__ == "__main__":
-    # Synchronous example
-    @TimerDecorator.timer(print, "同步函数执行")
-    def my():
-        for i in range(10):
-            ProgressBar.progress_bar_sync(
-                i, 10 - 1, prefix="Progress:", suffix="Complete"
-            )
-            time.sleep(0.1)
-
     # Asynchronous example
-    @TimerDecorator.timer_async(lambda x: print(x), "异步函数执行")
+    @time_async("异步函数执行", print)
     async def my_async():
         tasks = []
         for _ in range(101):
@@ -254,24 +105,21 @@ if __name__ == "__main__":
             tasks.append(task)
         for i, task in enumerate(asyncio.as_completed(tasks)):
             await task
-            await ProgressBar.progress_bar_async(
-                i, 101 - 1, prefix="Async Processing", suffix="Complete"
-            )
+            await print_progress_async(i, 101 - 1, prefix="Async Processing", suffix="Complete")
 
-    @TimerDecorator.timer_yield(lambda x: print(x), "生成器函数执行")
+    @timer_scope("生成器函数执行", lambda x: print(x))
     def generator_function():
         for i in range(5):
             yield i
             time.sleep(0.5)
 
-    my()
     asyncio.run(my_async())
 
-    async def test_AsyncTimer():
-        async with AsyncTimer(desc="test_AsyncTimer") as t:
+    async def test_async_timer_scope():
+        async with async_timer_scope(desc="test async_timer_scope") as t:
             await asyncio.sleep(1)  # 模拟耗时操作
 
-    asyncio.run(test_AsyncTimer())
+    asyncio.run(test_async_timer_scope())
 
-    with Timer(desc="test Timer") as t:
+    with timer_scope(desc="test timer scope") as t:
         time.sleep(1)  # 模拟耗时操作

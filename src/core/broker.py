@@ -1,83 +1,38 @@
-from abc import ABC, abstractmethod
-from typing import List, Dict, Literal, TypeVar, Generic
-import pandas as pd
+from typing import Callable, Literal, Protocol, NamedTuple, Any, Coroutine
 from .common_dataclasses import WatchlistSecurityModel, SecurityStaticInfoModel
 
-T = TypeVar("T")
-R = TypeVar("R")
+
+import pandas as pd
 
 
-class Broker(ABC, Generic[T, R]):
-    _instances = {}
+class GetWatchlistByGroupFunc(Protocol):
+    """获取指定组名下的所有标的"""
 
-    def __new__(cls, *args, **kw):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Broker, cls).__new__(cls)
-        return cls._instances[cls]
+    def __call__(self, group_name: str) -> Coroutine[Any, Any, list[WatchlistSecurityModel]]: ...
 
-    @abstractmethod
-    def connect(self, *args: T) -> R:
-        """链接到券商平台"""
-        pass
 
-    @abstractmethod
-    def get_watchlist_by_group(self, group_name: str) -> List[WatchlistSecurityModel]:
-        """获取指定组名下的所有标的"""
-        pass
+class GetStockStaticInfoFunc(Protocol):
+    """获取标的基本信息"""
 
-    @property
-    @abstractmethod
-    def watchlist(self) -> List[WatchlistSecurityModel]:
-        """所有自选"""
-        pass
+    def __call__(self, symbols: list[str]) -> Coroutine[Any, Any, list[SecurityStaticInfoModel]]: ...
 
-    @property
-    @abstractmethod
-    def holdings(self) -> List[WatchlistSecurityModel]:
-        """当前持仓"""
-        pass
 
-    @property
-    @abstractmethod
-    def watchlist_groups(self) -> List[Dict[Literal["id", "name"], int | str]]:
-        """所有自选分组"""
-        pass
+class GetHistoryCandlesticksFunc(Protocol):
+    """获取标的历史日K线（前复权）"""
 
-    @property
-    def watchlistGroups(self) -> List[Dict[Literal["id", "name"], int | str]]:
-        """向后兼容属性别名"""
-        return self.watchlist_groups
+    def __call__(self, symbol: str, count: int = 100) -> Coroutine[Any, Any, pd.DataFrame]: ...
 
-    @property
-    @abstractmethod
-    def account_balance(self) -> R:
-        """资产总览
-        TODO: 放在这里是否合适？交易和数据获取可以分开
-        """
-        pass
 
-    @abstractmethod
-    def get_stock_static_info(
-        self, symbols: List[str]
-    ) -> List[SecurityStaticInfoModel]:
-        """获取标的基本信息"""
-        pass
+class Broker(NamedTuple):
+    """行情与数据源操作集合"""
 
-    @abstractmethod
-    def get_history_candlesticks(
-        self, symbol: str, count: int = 100
-    ) -> pd.DataFrame:
-        """获取标的历史日K线"""
-        pass
+    get_watchlist_by_group: GetWatchlistByGroupFunc
+    get_watchlist: Callable[[], Coroutine[Any, Any, list[WatchlistSecurityModel]]]  # 所有自选
+    get_holdings: Callable[[], Coroutine[Any, Any, list[WatchlistSecurityModel]]]  # 当前持仓
+    get_watchlist_groups: Callable[[], Coroutine[Any, Any, list[dict[Literal["id", "name"], int | str]]]]  # 所有分组
+    get_stock_static_info: GetStockStaticInfoFunc
+    get_account_balance: Callable[[], Coroutine[Any, Any, Any]]  # 资产总览,根据实际返回类型替换 Any
+    get_history_candlesticks: GetHistoryCandlesticksFunc  # 历史K线获取
 
 
 __all__ = ["Broker"]
-
-# Test code to verify BrokerA is a singleton
-if __name__ == "__main__":
-
-    class BrokerA(Broker):
-        def connect(self):
-            print("login to broker A")
-
-    # print(BrokerA() == BrokerA())  # Should print: True
